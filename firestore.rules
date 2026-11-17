@@ -1,0 +1,511 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidMemberUids(list) {
+      return list is list &&
+             list.size() >= 1 &&
+             list.size() <= 2 &&
+             list[0] is string &&
+             list[0].size() >= 1 &&
+             list[0].size() <= 128 &&
+             (list.size() == 1 || (list[1] is string && list[1].size() >= 1 && list[1].size() <= 128 && list[1] != list[0]));
+    }
+
+    function isValidAvatarId(val) {
+      return val is string && val.size() <= 40 && val.matches('^[a-z0-9_]*$');
+    }
+
+    function isValidThemeId(val) {
+      return val is string && val.size() <= 40 && (val == '' || val.matches('^[a-z0-9_]+$') || val.matches('^custom_[0-9A-Fa-f]{6}$'));
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.preferredLanguage in ['en', 'ru'] &&
+             data.showSecondaryLanguage is bool &&
+             (!('coupleId' in data) || isValidId(data.coupleId)) &&
+             (!('avatarId' in data) || isValidAvatarId(data.avatarId)) &&
+             (!('nameConfirmed' in data) || data.nameConfirmed is bool) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCoupleInvite(data) {
+      return isValidId(data.coupleId) &&
+             data.creatorUid is string && data.creatorUid.size() >= 1 && data.creatorUid.size() <= 128 &&
+             data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+             data.claimed is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCoupleSpace(data) {
+      return data.creatorUid is string && data.creatorUid.size() >= 1 && data.creatorUid.size() <= 128 &&
+             isValidMemberUids(data.memberUids) &&
+             data.partnerOneName is string && data.partnerOneName.size() >= 1 && data.partnerOneName.size() <= 80 &&
+             data.partnerTwoName is string && data.partnerTwoName.size() <= 80 &&
+             (!('partnerOneAvatarId' in data) || isValidAvatarId(data.partnerOneAvatarId)) &&
+             (!('partnerTwoAvatarId' in data) || isValidAvatarId(data.partnerTwoAvatarId)) &&
+             data.inviteCode is string && data.inviteCode.size() >= 6 && data.inviteCode.size() <= 12 &&
+             data.inviteCode.matches('^[A-Z0-9]+$') &&
+             data.anniversaryLabel is string && data.anniversaryLabel.size() <= 60 &&
+             (!('nextMeetDateKey' in data) || (data.nextMeetDateKey is string && (data.nextMeetDateKey == '' || (data.nextMeetDateKey.size() == 10 && data.nextMeetDateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))))) &&
+             (!('nextMeetLocation' in data) || (data.nextMeetLocation is string && data.nextMeetLocation.size() <= 100)) &&
+             (!('relationshipStartDateKey' in data) || isOptionalDateKey(data.relationshipStartDateKey)) &&
+             (!('aestheticThemeId' in data) || isValidThemeId(data.aestheticThemeId)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidQuestionAnswer(data) {
+      return isValidId(data.coupleId) &&
+             isValidId(data.questionId) &&
+             isValidId(data.topicId) &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             data.authorLabel is string && data.authorLabel.size() >= 1 && data.authorLabel.size() <= 80 &&
+             data.speakerRole in ['self', 'partner_local'] &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 1500 &&
+             data.reaction is string && data.reaction.size() <= 16 &&
+             isValidMemberUids(data.memberUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCustomQuestion(data) {
+      return isValidId(data.coupleId) &&
+             isValidId(data.topicId) &&
+             data.promptEn is string && data.promptEn.size() <= 300 &&
+             data.promptRu is string && data.promptRu.size() <= 300 &&
+             (data.promptEn.size() >= 1 || data.promptRu.size() >= 1) &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             isValidMemberUids(data.memberUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidDailyDrawing(data) {
+      return isValidId(data.coupleId) &&
+             data.dateKey is string && data.dateKey.size() == 10 &&
+             data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             data.authorLabel is string && data.authorLabel.size() >= 1 && data.authorLabel.size() <= 80 &&
+             data.speakerRole in ['self', 'partner_local'] &&
+             data.caption is string && data.caption.size() <= 140 &&
+             data.strokes is list && data.strokes.size() >= 1 && data.strokes.size() <= 150 &&
+             data.strokes[0] is string &&
+             data.reaction is string && data.reaction.size() <= 16 &&
+             isValidMemberUids(data.memberUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isOptionalDateKey(val) {
+      return val is string && (val == '' || (val.size() == 10 && val.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+    }
+
+    function isValidTripMemory(data) {
+      return isValidId(data.coupleId) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.location is string && data.location.size() <= 100 &&
+             isOptionalDateKey(data.startDateKey) &&
+             isOptionalDateKey(data.endDateKey) &&
+             data.notes is string && data.notes.size() <= 2000 &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             isValidMemberUids(data.memberUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidTripPhoto(data) {
+      return isValidId(data.coupleId) &&
+             isValidId(data.tripId) &&
+             data.takenDateKey is string && data.takenDateKey.size() == 10 &&
+             data.takenDateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+             data.takenTimeLabel is string && data.takenTimeLabel.size() <= 10 &&
+             data.takenMillis is int && data.takenMillis >= 0 &&
+             data.timestampSource in ['exif', 'file', 'manual'] &&
+             data.caption is string && data.caption.size() <= 200 &&
+             data.thumbnailBase64 is string && data.thumbnailBase64.size() >= 1 && data.thumbnailBase64.size() <= 220000 &&
+             (!('reaction' in data) || (data.reaction is string && data.reaction.size() <= 16)) &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             data.authorLabel is string && data.authorLabel.size() >= 1 && data.authorLabel.size() <= 80 &&
+             isValidMemberUids(data.memberUids) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'preferredLanguage', 'showSecondaryLanguage', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'coupleId', 'preferredLanguage', 'showSecondaryLanguage', 'avatarId', 'nameConfirmed', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'coupleId', 'preferredLanguage', 'showSecondaryLanguage', 'avatarId', 'nameConfirmed', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    match /coupleInvites/{inviteCode} {
+      allow get: if isSignedIn() && isValidId(inviteCode);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(inviteCode) &&
+                       inviteCode.size() == 6 &&
+                       inviteCode.matches('^[A-Z0-9]+$') &&
+                       isValidCoupleInvite(incoming()) &&
+                       incoming().creatorUid == request.auth.uid &&
+                       incoming().claimed == false &&
+                       incoming().keys().hasAll(['coupleId', 'creatorUid', 'creatorName', 'claimed', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['coupleId', 'creatorUid', 'creatorName', 'claimed', 'createdAt', 'updatedAt']) &&
+                       existsAfter(/databases/$(database)/documents/couples/$(incoming().coupleId)) &&
+                       getAfter(/databases/$(database)/documents/couples/$(incoming().coupleId)).data.creatorUid == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+                       isValidId(inviteCode) &&
+                       isValidCoupleInvite(incoming()) &&
+                       incoming().coupleId == existing().coupleId &&
+                       incoming().creatorUid == existing().creatorUid &&
+                       incoming().creatorName == existing().creatorName &&
+                       incoming().createdAt == existing().createdAt &&
+                       existing().claimed == false &&
+                       incoming().claimed == true &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['claimed', 'updatedAt']) &&
+                       request.auth.uid in getAfter(/databases/$(database)/documents/couples/$(existing().coupleId)).data.memberUids;
+
+      allow delete: if isSignedIn() && isValidId(inviteCode) && existing().creatorUid == request.auth.uid;
+    }
+
+    match /couples/{coupleId} {
+      allow get: if isSignedIn() && isValidId(coupleId) && request.auth.uid in existing().memberUids;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+      allow create: if isSignedIn() &&
+                       isValidId(coupleId) &&
+                       isValidCoupleSpace(incoming()) &&
+                       incoming().creatorUid == request.auth.uid &&
+                       incoming().memberUids.size() == 1 &&
+                       incoming().memberUids[0] == request.auth.uid &&
+                       incoming().keys().hasAll(['creatorUid', 'memberUids', 'partnerOneName', 'partnerTwoName', 'inviteCode', 'anniversaryLabel', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['creatorUid', 'memberUids', 'partnerOneName', 'partnerTwoName', 'partnerOneAvatarId', 'partnerTwoAvatarId', 'inviteCode', 'anniversaryLabel', 'nextMeetDateKey', 'nextMeetLocation', 'relationshipStartDateKey', 'aestheticThemeId', 'createdAt', 'updatedAt']);
+
+      allow update: if isSignedIn() &&
+                       isValidId(coupleId) &&
+                       isValidCoupleSpace(incoming()) &&
+                       incoming().creatorUid == existing().creatorUid &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action 1: Existing member updates own name/avatar, relationship start date, aesthetic theme, or next reunion date/location
+                         (
+                           request.auth.uid in existing().memberUids &&
+                           incoming().memberUids == existing().memberUids &&
+                           incoming().inviteCode == existing().inviteCode &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['partnerOneName', 'partnerTwoName', 'partnerOneAvatarId', 'partnerTwoAvatarId', 'anniversaryLabel', 'nextMeetDateKey', 'nextMeetLocation', 'relationshipStartDateKey', 'aestheticThemeId', 'updatedAt']) &&
+                           (!('partnerOneName' in incoming().diff(existing()).affectedKeys()) || request.auth.uid == existing().creatorUid) &&
+                           (!('partnerTwoName' in incoming().diff(existing()).affectedKeys()) || request.auth.uid != existing().creatorUid) &&
+                           (!('partnerOneAvatarId' in incoming().diff(existing()).affectedKeys()) || request.auth.uid == existing().creatorUid) &&
+                           (!('partnerTwoAvatarId' in incoming().diff(existing()).affectedKeys()) || request.auth.uid != existing().creatorUid)
+                         ) ||
+                         // Action 2: Second partner joins via unclaimed invite code in an atomic batch
+                         (
+                           existing().memberUids.size() == 1 &&
+                           !(request.auth.uid in existing().memberUids) &&
+                           incoming().memberUids.size() == 2 &&
+                           incoming().memberUids.hasAll(existing().memberUids) &&
+                           request.auth.uid in incoming().memberUids &&
+                           incoming().partnerOneName == existing().partnerOneName &&
+                           (!('partnerOneAvatarId' in existing()) || incoming().partnerOneAvatarId == existing().partnerOneAvatarId) &&
+                           (!('aestheticThemeId' in existing()) || incoming().aestheticThemeId == existing().aestheticThemeId) &&
+                           incoming().inviteCode == existing().inviteCode &&
+                           incoming().anniversaryLabel == existing().anniversaryLabel &&
+                           (!('nextMeetDateKey' in existing()) || incoming().nextMeetDateKey == existing().nextMeetDateKey) &&
+                           (!('nextMeetLocation' in existing()) || incoming().nextMeetLocation == existing().nextMeetLocation) &&
+                           (!('relationshipStartDateKey' in existing()) || incoming().relationshipStartDateKey == existing().relationshipStartDateKey) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'partnerTwoName', 'partnerTwoAvatarId', 'updatedAt']) &&
+                           exists(/databases/$(database)/documents/coupleInvites/$(existing().inviteCode)) &&
+                           get(/databases/$(database)/documents/coupleInvites/$(existing().inviteCode)).data.coupleId == coupleId &&
+                           get(/databases/$(database)/documents/coupleInvites/$(existing().inviteCode)).data.claimed == false &&
+                           getAfter(/databases/$(database)/documents/coupleInvites/$(existing().inviteCode)).data.claimed == true
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(coupleId) && existing().creatorUid == request.auth.uid;
+
+      match /answers/{answerId} {
+        allow get: if isSignedIn() && isValidId(coupleId) && isValidId(answerId) && request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(answerId) &&
+                         isValidQuestionAnswer(incoming()) &&
+                         incoming().coupleId == coupleId &&
+                         incoming().authorUid == request.auth.uid &&
+                         incoming().speakerRole == 'self' &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll(['coupleId', 'questionId', 'topicId', 'authorUid', 'authorLabel', 'speakerRole', 'text', 'reaction', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['coupleId', 'questionId', 'topicId', 'authorUid', 'authorLabel', 'speakerRole', 'text', 'reaction', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                         incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(answerId) &&
+                         isValidQuestionAnswer(incoming()) &&
+                         incoming().coupleId == existing().coupleId &&
+                         incoming().questionId == existing().questionId &&
+                         incoming().topicId == existing().topicId &&
+                         incoming().authorUid == existing().authorUid &&
+                         incoming().speakerRole == existing().speakerRole &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action 1: Author edits answer text or label
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['text', 'authorLabel', 'updatedAt'])
+                           ) ||
+                           // Action 2: Either partner adds/updates reaction emoji
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['reaction', 'updatedAt'])
+                           ) ||
+                           // Action 3: Author syncs denormalized memberUids after partner joins couple
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in incoming().memberUids &&
+                             exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                             incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(coupleId) && isValidId(answerId) && existing().authorUid == request.auth.uid;
+      }
+
+      match /customQuestions/{questionId} {
+        allow get: if isSignedIn() && isValidId(coupleId) && isValidId(questionId) && request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(questionId) &&
+                         isValidCustomQuestion(incoming()) &&
+                         incoming().coupleId == coupleId &&
+                         incoming().authorUid == request.auth.uid &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll(['coupleId', 'topicId', 'promptEn', 'promptRu', 'authorUid', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['coupleId', 'topicId', 'promptEn', 'promptRu', 'authorUid', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                         incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(questionId) &&
+                         isValidCustomQuestion(incoming()) &&
+                         incoming().coupleId == existing().coupleId &&
+                         incoming().topicId == existing().topicId &&
+                         incoming().authorUid == existing().authorUid &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['promptEn', 'promptRu', 'updatedAt'])
+                           ) ||
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in incoming().memberUids &&
+                             exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                             incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(coupleId) && isValidId(questionId) && existing().authorUid == request.auth.uid;
+      }
+
+      match /drawings/{drawingId} {
+        allow get: if isSignedIn() && isValidId(coupleId) && isValidId(drawingId) && request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(drawingId) &&
+                         isValidDailyDrawing(incoming()) &&
+                         incoming().coupleId == coupleId &&
+                         incoming().authorUid == request.auth.uid &&
+                         incoming().speakerRole == 'self' &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll(['coupleId', 'dateKey', 'authorUid', 'authorLabel', 'speakerRole', 'caption', 'strokes', 'reaction', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['coupleId', 'dateKey', 'authorUid', 'authorLabel', 'speakerRole', 'caption', 'strokes', 'reaction', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                         incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(drawingId) &&
+                         isValidDailyDrawing(incoming()) &&
+                         incoming().coupleId == existing().coupleId &&
+                         incoming().dateKey == existing().dateKey &&
+                         incoming().authorUid == existing().authorUid &&
+                         incoming().speakerRole == existing().speakerRole &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action 1: Author updates drawing strokes, caption, or label
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['strokes', 'caption', 'authorLabel', 'updatedAt'])
+                           ) ||
+                           // Action 2: Either partner reacts to the drawing
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['reaction', 'updatedAt'])
+                           ) ||
+                           // Action 3: Author syncs denormalized memberUids after partner joins
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in incoming().memberUids &&
+                             exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                             incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(coupleId) && isValidId(drawingId) && existing().authorUid == request.auth.uid;
+      }
+
+      match /trips/{tripId} {
+        allow get: if isSignedIn() && isValidId(coupleId) && isValidId(tripId) && request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(tripId) &&
+                         isValidTripMemory(incoming()) &&
+                         incoming().coupleId == coupleId &&
+                         incoming().authorUid == request.auth.uid &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll(['coupleId', 'title', 'location', 'startDateKey', 'endDateKey', 'notes', 'authorUid', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['coupleId', 'title', 'location', 'startDateKey', 'endDateKey', 'notes', 'authorUid', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                         incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(tripId) &&
+                         isValidTripMemory(incoming()) &&
+                         incoming().coupleId == existing().coupleId &&
+                         incoming().authorUid == existing().authorUid &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             incoming().memberUids == existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['title', 'location', 'startDateKey', 'endDateKey', 'notes', 'updatedAt'])
+                           ) ||
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in incoming().memberUids &&
+                             exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                             incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(coupleId) && isValidId(tripId) && request.auth.uid in existing().memberUids;
+      }
+
+      match /tripPhotos/{photoId} {
+        allow get: if isSignedIn() && isValidId(coupleId) && isValidId(photoId) && request.auth.uid in existing().memberUids;
+        allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(photoId) &&
+                         isValidTripPhoto(incoming()) &&
+                         incoming().coupleId == coupleId &&
+                         incoming().authorUid == request.auth.uid &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll(['coupleId', 'tripId', 'takenDateKey', 'takenTimeLabel', 'takenMillis', 'timestampSource', 'caption', 'thumbnailBase64', 'reaction', 'authorUid', 'authorLabel', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['coupleId', 'tripId', 'takenDateKey', 'takenTimeLabel', 'takenMillis', 'timestampSource', 'caption', 'thumbnailBase64', 'reaction', 'authorUid', 'authorLabel', 'memberUids', 'createdAt', 'updatedAt']) &&
+                         exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                         incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(coupleId) &&
+                         isValidId(photoId) &&
+                         isValidTripPhoto(incoming()) &&
+                         incoming().coupleId == existing().coupleId &&
+                         incoming().authorUid == existing().authorUid &&
+                         incoming().authorLabel == existing().authorLabel &&
+                         incoming().thumbnailBase64 == existing().thumbnailBase64 &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             incoming().memberUids == existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['caption', 'takenDateKey', 'takenTimeLabel', 'takenMillis', 'timestampSource', 'tripId', 'reaction', 'updatedAt'])
+                           ) ||
+                           (
+                             request.auth.uid in existing().memberUids &&
+                             incoming().memberUids == existing().memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['reaction', 'updatedAt'])
+                           ) ||
+                           (
+                             existing().authorUid == request.auth.uid &&
+                             request.auth.uid in incoming().memberUids &&
+                             exists(/databases/$(database)/documents/couples/$(coupleId)) &&
+                             incoming().memberUids == get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(coupleId) && isValidId(photoId) && request.auth.uid in existing().memberUids;
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Дуэт</string>
+    <string name="widget_countdown_label">Дни и встреча</string>
+    <string name="widget_countdown_description">Отслеживайте дни вместе и обратный отсчёт до следующей встречи.</string>
+</resources>

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Duet</string>
+    <string name="widget_countdown_label">Days &amp; Reunion</string>
+    <string name="widget_countdown_description">Track how many days you have been together and countdown to your next reunion.</string>
+</resources>

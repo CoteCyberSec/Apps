@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user profile and couple linkage preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID matching document ID." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "coupleId": { "type": "string", "description": "Optional active couple space ID." },
+        "preferredLanguage": { "type": "string", "enum": ["en", "ru"], "description": "Preferred UI and prompt language." },
+        "showSecondaryLanguage": { "type": "boolean", "description": "Whether to show secondary language translation beneath prompts." },
+        "avatarId": { "type": "string", "description": "Selected preset avatar identifier." },
+        "nameConfirmed": { "type": "boolean", "description": "Whether the user has confirmed or customized their name on first join." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "displayName", "preferredLanguage", "showSecondaryLanguage", "createdAt", "updatedAt"]
+    },
+    "CoupleInvite": {
+      "title": "CoupleInvite",
+      "description": "Single-use 6-character invite code mapping to a CoupleSpace.",
+      "type": "object",
+      "properties": {
+        "coupleId": { "type": "string", "description": "Target CoupleSpace document ID." },
+        "creatorUid": { "type": "string", "description": "UID of the partner who created the invite." },
+        "creatorName": { "type": "string", "description": "Display name of creator." },
+        "claimed": { "type": "boolean", "description": "Whether a partner has claimed this invite." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["coupleId", "creatorUid", "creatorName", "claimed", "createdAt", "updatedAt"]
+    },
+    "CoupleSpace": {
+      "title": "CoupleSpace",
+      "description": "Shared space for a couple (1 to 2 members) to answer topics together.",
+      "type": "object",
+      "properties": {
+        "creatorUid": { "type": "string", "description": "UID of the user who initialized the space." },
+        "memberUids": { "type": "array", "description": "Bounded list of 1-2 member UIDs." },
+        "partnerOneName": { "type": "string", "description": "First partner display name." },
+        "partnerTwoName": { "type": "string", "description": "Second partner display name (or local partner label)." },
+        "partnerOneAvatarId": { "type": "string", "description": "Selected preset avatar ID for partner 1." },
+        "partnerTwoAvatarId": { "type": "string", "description": "Selected preset avatar ID for partner 2." },
+        "inviteCode": { "type": "string", "description": "Active 6-character invite code." },
+        "anniversaryLabel": { "type": "string", "description": "Optional milestone or relationship label." },
+        "nextMeetDateKey": { "type": "string", "description": "Optional YYYY-MM-DD date of next reunion." },
+        "nextMeetLocation": { "type": "string", "description": "Optional location of next reunion." },
+        "relationshipStartDateKey": { "type": "string", "description": "Optional YYYY-MM-DD date when the couple started dating." },
+        "aestheticThemeId": { "type": "string", "description": "Synced couple aesthetic preset ID or custom_RRGGBB theme." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["creatorUid", "memberUids", "partnerOneName", "partnerTwoName", "inviteCode", "anniversaryLabel", "createdAt", "updatedAt"]
+    },
+    "QuestionAnswer": {
+      "title": "QuestionAnswer",
+      "description": "A partner's written answer to a topic question inside a CoupleSpace.",
+      "type": "object",
+      "properties": {
+        "coupleId": { "type": "string", "description": "Parent CoupleSpace ID." },
+        "questionId": { "type": "string", "description": "Prompt ID being answered." },
+        "topicId": { "type": "string", "description": "Topic deck ID." },
+        "authorUid": { "type": "string", "description": "UID of the authenticated user who submitted the record." },
+        "authorLabel": { "type": "string", "description": "Display label of who answered." },
+        "speakerRole": { "type": "string", "enum": ["self", "partner_local"], "description": "Whether written as self or pass-the-phone partner." },
+        "text": { "type": "string", "description": "Answer text." },
+        "reaction": { "type": "string", "description": "Optional reaction from partner." },
+        "memberUids": { "type": "array", "description": "Denormalized list of parent CoupleSpace member UIDs." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["coupleId", "questionId", "topicId", "authorUid", "authorLabel", "speakerRole", "text", "reaction", "memberUids", "createdAt", "updatedAt"]
+    },
+    "CustomQuestion": {
+      "title": "CustomQuestion",
+      "description": "Couple-authored custom conversation prompt in English and/or Russian.",
+      "type": "object",
+      "properties": {
+        "coupleId": { "type": "string", "description": "Parent CoupleSpace ID." },
+        "topicId": { "type": "string", "description": "Topic deck ID." },
+        "promptEn": { "type": "string", "description": "English prompt text." },
+        "promptRu": { "type": "string", "description": "Russian prompt text." },
+        "authorUid": { "type": "string", "description": "UID of the partner who added the prompt." },
+        "memberUids": { "type": "array", "description": "Denormalized list of parent CoupleSpace member UIDs." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["coupleId", "topicId", "promptEn", "promptRu", "authorUid", "memberUids", "createdAt", "updatedAt"]
+    },
+    "DailyDrawing": {
+      "title": "DailyDrawing",
+      "description": "A daily vector-stroke drawing created by one partner for the other.",
+      "type": "object",
+      "properties": {
+        "coupleId": { "type": "string", "description": "Parent CoupleSpace ID." },
+        "dateKey": { "type": "string", "description": "Calendar day key YYYY-MM-DD." },
+        "authorUid": { "type": "string", "description": "UID of the user who saved the drawing." },
+        "authorLabel": { "type": "string", "description": "Display label of artist." },
+        "speakerRole": { "type": "string", "enum": ["self", "partner_local"], "description": "Self or pass-the-phone partner." },
+        "caption": { "type": "string", "description": "Optional short note accompanying the drawing." },
+        "strokes": { "type": "array", "description": "Encoded normalized vector stroke strings." },
+        "reaction": { "type": "string", "description": "Optional reaction from partner." },
+        "memberUids": { "type": "array", "description": "Denormalized list of parent CoupleSpace member UIDs." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["coupleId", "dateKey", "authorUid", "authorLabel", "speakerRole", "caption", "strokes", "reaction", "memberUids", "createdAt", "updatedAt"]
+    },
+    "TripMemory": {
+      "title": "TripMemory",
+      "description": "A past trip or meetup memory with notes on what the couple did.",
+      "type": "object",
+      "properties": {
+        "coupleId": { "type": "string", "description": "Parent CoupleSpace ID." },
+        "title": { "type": "string", "description": "Trip or meetup name." },
+        "location": { "type": "string", "description": "City or place of meetup." },
+        "startDateKey": { "type": "string", "description": "Optional YYYY-MM-DD start date." },
+        "endDateKey": { "type": "string", "description": "Optional YYYY-MM-DD end date." },
+        "notes": { "type": "string", "description": "Shared memory of what you did together." },
+        "authorUid": { "type": "string", "description": "UID of creator." },
+        "memberUids": { "type": "array", "description": "Denormalized list of parent CoupleSpace member UIDs." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["coupleId", "title", "location", "startDateKey", "endDateKey", "notes", "authorUid", "memberUids", "createdAt", "updatedAt"]
+    },
+    "TripPhoto": {
+      "title": "TripPhoto",
+      "description": "A trip photo categorized by its EXIF or file metadata timestamp.",
+      "type": "object",
+      "properties": {
+        "coupleId": { "type": "string", "description": "Parent CoupleSpace ID." },
+        "tripId": { "type": "string", "description": "Parent TripMemory ID." },
+        "takenDateKey": { "type": "string", "description": "Date taken YYYY-MM-DD extracted from photo metadata." },
+        "takenTimeLabel": { "type": "string", "description": "Time taken HH:mm extracted from metadata." },
+        "takenMillis": { "type": "integer", "description": "Epoch milliseconds of photo capture timestamp." },
+        "timestampSource": { "type": "string", "enum": ["exif", "file", "manual"], "description": "Origin of capture date." },
+        "caption": { "type": "string", "description": "Optional memory note for the picture." },
+        "thumbnailBase64": { "type": "string", "description": "Compressed JPEG preview encoded in Base64 for couple sync." },
+        "reaction": { "type": "string", "description": "Optional emoji reaction to the trip picture." },
+        "authorUid": { "type": "string", "description": "UID of uploader." },
+        "authorLabel": { "type": "string", "description": "Display name of uploader." },
+        "memberUids": { "type": "array", "description": "Denormalized list of parent CoupleSpace member UIDs." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["coupleId", "tripId", "takenDateKey", "takenTimeLabel", "takenMillis", "timestampSource", "caption", "thumbnailBase64", "authorUid", "authorLabel", "memberUids", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile and active couple preferences."
+    },
+    "/coupleInvites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/CoupleInvite" },
+      "description": "Direct-get invite code lookup for pairing two partners."
+    },
+    "/couples/{coupleId}": {
+      "schema": { "$ref": "#/entities/CoupleSpace" },
+      "description": "Shared couple space document."
+    },
+    "/couples/{coupleId}/answers/{answerId}": {
+      "schema": { "$ref": "#/entities/QuestionAnswer" },
+      "description": "Couple answers for topic questions."
+    },
+    "/couples/{coupleId}/customQuestions/{questionId}": {
+      "schema": { "$ref": "#/entities/CustomQuestion" },
+      "description": "Custom questions authored by the couple."
+    },
+    "/couples/{coupleId}/drawings/{drawingId}": {
+      "schema": { "$ref": "#/entities/DailyDrawing" },
+      "description": "Daily drawings created by partners for each other."
+    },
+    "/couples/{coupleId}/trips/{tripId}": {
+      "schema": { "$ref": "#/entities/TripMemory" },
+      "description": "Past trips and meetups remembered by the couple."
+    },
+    "/couples/{coupleId}/tripPhotos/{photoId}": {
+      "schema": { "$ref": "#/entities/TripPhoto" },
+      "description": "Pictures attached to trips and categorized by capture date metadata."
+    }
+  }
+}

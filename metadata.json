@@ -1,0 +1,6 @@
+{
+  "name": "Duet",
+  "description": "Bilingual English and Russian couples topics and shared answers app.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
